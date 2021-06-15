@@ -356,7 +356,7 @@ dropdown5 = Dropdown(label="Dropdown button", button_type="warning", menu=menu)
 dropdown5.on_click(valueUp)
 LABELS = ["Single","Multiple"]
 
-checkbox_group = RadioGroup(labels=LABELS, active=0)
+checkbox_group = RadioGroup(labels=LABELS, active=0,max_width=70)
 checkbox_group.on_click(checkbox)
 bt = Button(label='Apply')
 btr = Button(label='Reset filter')
