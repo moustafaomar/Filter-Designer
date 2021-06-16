@@ -2,7 +2,7 @@ from logging import Filter
 from math import atan
 import numpy as np
 from bokeh.plotting import figure, Column,Row
-from bokeh.models import PointDrawTool, ColumnDataSource,Button
+from bokeh.models import PointDrawTool, ColumnDataSource,Button,Div
 from bokeh.models.widgets import RadioButtonGroup
 from bokeh.layouts import *
 from bokeh.io import curdoc
@@ -10,19 +10,27 @@ from bokeh.events import DoubleTap
 from scipy.signal import zpk2tf, freqz
 import numpy as np
 from bokeh.models import Dropdown,RadioGroup
-
+## State variables
 filter = None
-filter_count = 2
 apply = False
-dropdown = RadioButtonGroup(labels=['Zero', 'Pole'], active=0)
-dropdown2 = RadioButtonGroup(labels=['No conjugate', 'Conjugate'], active=0)
-button = Button(label='Reset')
+state=0
+multiplee=[]
+conj = 0
+## Figures setup
 p = figure(x_range=(-2,2), y_range=(-2,2), tools=[],
            title='Task 5',plot_width=270, plot_height=400)
-p.circle(0,0,radius=1,fill_color=None,line_color='OliveDrab')
 p2 = figure(x_range=(-2,2), y_range=(-2,2), tools=[],
            title='Filter Designer',plot_width=270, plot_height=400)
+PPhase=figure(x_range=(0,3.14), y_range=(-3.14,3.14), tools=[],
+           title='Phase',plot_width=270, plot_height=400)
+FilterPhase=figure(x_range=(0,3.14), y_range=(-3.14,3.14), tools=[],
+title='Filter Phase',plot_width=270, plot_height=400)
+PMagnitude=figure(x_range=(0,3.14), y_range=(0,10), tools=[],
+           title='Magnitude',plot_width=270, plot_height=400)
+## Draw unit circles
+p.circle(0,0,radius=1,fill_color=None,line_color='OliveDrab')
 p2.circle(0,0,radius=1,fill_color=None,line_color='OliveDrab')
+## Initialize column data sources
 source = ColumnDataSource({
     'x': [], 'y': [], 'marker': []
 })
@@ -32,21 +40,20 @@ conjsource = ColumnDataSource({
 filtersource = ColumnDataSource({
     'x': [], 'y': [], 'marker': []
 })
-PMagnitude=figure(x_range=(0,3.14), y_range=(0,10), tools=[],
-           title='Magnitude',plot_width=270, plot_height=400)
 source2= ColumnDataSource({
     'w':[], 'h':[]
 })
-Zero=[]
-Pole=[]
-PPhase=figure(x_range=(0,3.14), y_range=(-3.14,3.14), tools=[],
-           title='Phase',plot_width=270, plot_height=400)
-FilterPhase=figure(x_range=(0,3.14), y_range=(-3.14,3.14), tools=[],
-title='Filter Phase',plot_width=270, plot_height=400)
 source3= ColumnDataSource({
     'w':[], 'p':[]
 })
+filterp=ColumnDataSource({
+    'w':[], 'p':[]
+})
+## Initialize main zero,pole arrays
+Zero=[]
+Pole=[]
 
+## Default filters definition
 x1=[[0.25,0.5,1],0.5,0.2,0.75]
 y1=[[0.25,0.5,1],0.2,0.75]
 x2=[[2,1.75,1.5],3,4,5]
@@ -63,18 +70,35 @@ filterpole2x=[1.25,1.4,1.7]
 filterpole2y=[1.25,1.4,1.7]
 filterpoles=[[-1.85+1.85*1j,1.75+1.75*1j,-1.5-1.5*1j],[-1.25-1.25*1j,1.4+1.4*1j,1.7-1.7*1j],[-1.32-1.32*1j,1.45-1.45*1j,2+1*1j]]
 filterzeros=[]
+## Custom filter arrays
 customzero_list=[]
 custompoles_list=[]
-state=0
-multiplee=[]
-filterp=ColumnDataSource({
-    'w':[], 'p':[]
-})
+## UI controls
+dropdown = RadioButtonGroup(labels=['Zero', 'Pole'], active=0)
+dropdown2 = RadioButtonGroup(labels=['No conjugate', 'Conjugate'], active=0)
+button = Button(label='Reset')
 menu = [("Filter 1", "0"), ("Filter 2", "1"), ("Filter 3", "2")]
+bt = Button(label='Apply')
+btr = Button(label='Reset filter')
+btf = Button(label='Add to filters')
+LABELS = ["Single","Multiple"]
+checkbox_group = RadioGroup(labels=LABELS, active=0,max_width=70)
+dropdown5 = Dropdown(label="Filters picker", button_type="warning", menu=menu)
+## UI renderers
+renderer = p.scatter(x='x', y='y',marker='marker', source=source,size=15)
+renderer2 = p.scatter(x='x', y='y',marker='marker', source=conjsource,size=15)
+renderer3 = p2.scatter(x='x', y='y',marker='marker', source=filtersource,size=15)
+## Magnitude and phase plots
+PMagnitude.line(x='w',y='h',source=source2)
+PPhase.line(x='w',y='p',source=source3)
+FilterPhase.line(x='w',y='p',source=filterp)
+draw_tool = PointDrawTool(renderers=[renderer,renderer2],add=False)
+p.add_tools(draw_tool)
+p.toolbar.active_tap = draw_tool
+draw_tool2 = PointDrawTool(renderers=[renderer3],add=False)
+p2.add_tools(draw_tool2)
+p2.toolbar.active_tap = draw_tool2
 
-
-
-##### start Ahmed
 def customzeros(poles):
     xcustomzeros=[]
     ycustomzeros=[]
@@ -106,10 +130,7 @@ def  custom_filter():
             custompoles_list.append(filtersource.data['x'][i]+filtersource.data['y'][i]*1j)
     filterpoles+=[custompoles_list]
     customzeros(custompoles_list)
-    # stopped here
-#####end Ahmed
 
-conj = 0
 def UpdateConj():
     global conj,conjsource,p,draw_tool
     conj = dropdown2.active
@@ -125,18 +146,6 @@ def UpdateMode():
         marker = 'circle'
     else:
         marker = 'asterisk'
-renderer = p.scatter(x='x', y='y',marker='marker', source=source,size=15)
-renderer2 = p.scatter(x='x', y='y',marker='marker', source=conjsource,size=15)
-renderer3 = p2.scatter(x='x', y='y',marker='marker', source=filtersource,size=15)
-PMagnitude.line(x='w',y='h',source=source2)
-PPhase.line(x='w',y='p',source=source3)
-FilterPhase.line(x='w',y='p',source=filterp)
-draw_tool = PointDrawTool(renderers=[renderer,renderer2],add=False)
-p.add_tools(draw_tool)
-p.toolbar.active_tap = draw_tool
-draw_tool2 = PointDrawTool(renderers=[renderer3],add=False)
-p2.add_tools(draw_tool2)
-p2.toolbar.active_tap = draw_tool2
 def callback(event):
     source.stream({
     'x': [event.x], 'y': [event.y], 'marker': [marker]
@@ -254,6 +263,23 @@ def phasecalc():
         'w':w, 'p':phase
     })
     
+def setzeros(poles,filternum):
+    global filterzeros
+    if(state==0):
+        
+        filterzeros=[]
+        for element in poles[filternum]:
+            x=element/((np.real(element))**2+(np.imag(element))**2)
+            filterzeros.append(x)
+    else:
+        
+        filterzeros=[]
+        for i in range(len(poles)):
+            if str(i) in multiplee:
+                for element in poles[i]:
+                   x=element/((np.real(element))**2+(np.imag(element))**2)
+                   filterzeros.append(x)
+    return filterzeros
 def checkbox(event):
     global state
     state=event
@@ -273,23 +299,6 @@ def status():
 
 
 
-def setzeros(poles,filternum):
-    global filterzeros
-    if(state==0):
-        
-        filterzeros=[]
-        for element in poles[filternum]:
-            x=element/((np.real(element))**2+(np.imag(element))**2)
-            filterzeros.append(x)
-    else:
-        
-        filterzeros=[]
-        for i in range(len(poles)):
-            if str(i) in multiplee:
-                for element in poles[i]:
-                   x=element/((np.real(element))**2+(np.imag(element))**2)
-                   filterzeros.append(x)
-    return filterzeros
 def allpass():
     filtersource.data = {'x':[],'y':[],'marker':[]}
     
@@ -346,31 +355,27 @@ def allpass():
     'x': xscale, 'y': yscale, 'marker': markers
     })
     phasefilter()
-
-p.on_event(DoubleTap, callback)
-p2.on_event(DoubleTap, DrawFilter)
-button.on_click(reset)
-dropdown.on_change('active', lambda attr, old, new: UpdateMode())
-dropdown2.on_change('active', lambda attr, old, new: UpdateConj())
-dropdown5 = Dropdown(label="Dropdown button", button_type="warning", menu=menu)
-dropdown5.on_click(valueUp)
-LABELS = ["Single","Multiple"]
-
-checkbox_group = RadioGroup(labels=LABELS, active=0,max_width=70)
-checkbox_group.on_click(checkbox)
-bt = Button(label='Apply')
-btr = Button(label='Reset filter')
-btf = Button(label='Add to filters')
 def apply_filter():
     global apply
     apply = True
     allpass()
 def reset_filter():
+    global custompoles_list,customzero_list
     filtersource.data={'x':[],'y':[],'marker':[]}
-
+    filterp.data = {'w':[],'p':[]}
+    custompoles_list = []
+    customzero_list = []
+## Control hooks
+p.on_event(DoubleTap, callback)
+p2.on_event(DoubleTap, DrawFilter)
+button.on_click(reset)
+dropdown.on_change('active', lambda attr, old, new: UpdateMode())
+dropdown2.on_change('active', lambda attr, old, new: UpdateConj())
+dropdown5.on_click(valueUp)
+checkbox_group.on_click(checkbox)
 bt.on_click(apply_filter)
 btr.on_click(reset_filter)
 btf.on_click(addtofilters)
-layout=Column(Row(dropdown,dropdown2,button),Row(dropdown5,bt,btr,checkbox_group,btf),Row(p,PMagnitude,PPhase,p2,FilterPhase))
-
+mytext =Div(text="""<h3>To add a zero/pole double click the plotter. <br> To delete a zero/pole click the zero/pole to select then click backspace. <br> To move a zero/pole drag it to the position where you would like it to be.</h3>""")
+layout=Column(Row(dropdown,dropdown2,button),Row(dropdown5,bt,btr,checkbox_group,btf),Row(p,PMagnitude,PPhase,p2,FilterPhase),mytext)
 curdoc().add_root(layout)
